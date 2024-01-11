@@ -87,7 +87,8 @@ function M.get_options(config, ngx)
     proxy_opts = {
       http_proxy  = config.http_proxy,
       https_proxy = config.https_proxy
-    }
+    },
+    authorization_scopes_required = config.authorization_scopes_required
   }
 end
 
@@ -175,7 +176,7 @@ function M.injectHeaders(header_names, header_claims, sources)
   for i = 1, #header_names do
     local header, claim
     header = header_names[i]
-    claim = header_claims[i] 
+    claim = header_claims[i]
     kong.service.request.clear_header(header)
     for j = 1, #sources do
       local source, claim_value
@@ -197,7 +198,7 @@ function M.has_bearer_access_token()
   local header = ngx.req.get_headers()['Authorization']
   if header and header:find(" ") then
     local divider = header:find(' ')
-    if string.lower(header:sub(0, divider-1)) == string.lower("Bearer") then
+    if string.lower(header:sub(0, divider - 1)) == string.lower("Bearer") then
       return true
     end
   end
@@ -225,6 +226,23 @@ function M.has_common_item(t1, t2)
     end
   end
   return false
+end
+
+-- verify if t1 has all the items for t2
+function containsAll(t1, t2)
+  for _, item2 in ipairs(t2) do
+    local found = false
+    for _, item1 in ipairs(t1) do
+      if item1 == item2 then
+        found = true
+        break
+      end
+    end
+    if not found then
+      return false
+    end
+  end
+  return true
 end
 
 return M

@@ -18,13 +18,13 @@ return {
           {
             client_id = {
               type = "string",
-              required = true
+              required = false
             }
           },
           {
             client_secret = {
               type = "string",
-              required = true
+              required = false
             }
           },
           {
@@ -304,6 +304,15 @@ return {
             https_proxy = {
               type = "string",
               required = false
+            }
+          },
+          {
+            authorization_scopes_required = {
+              required = false,
+              type = "array",
+              elements = {
+                type = "string"
+              }
             }
           }
         }
