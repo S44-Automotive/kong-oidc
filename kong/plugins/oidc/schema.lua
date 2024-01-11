@@ -305,6 +305,15 @@ return {
               type = "string",
               required = false
             }
+          },
+          {
+            authorization_scopes_required = {
+              required = false,
+              type = "array",
+              elements = {
+                type = "string"
+              }
+            }
           }
         }
       }

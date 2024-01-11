@@ -129,16 +129,12 @@ function introspect(oidcConfig)
     end
     if oidcConfig.validate_scope == "yes" then
       local validScope = false
+      local scopes_required = { table.unpack(oidcConfig.authorization_scopes_required), oidcConfig.scope }
       if res.scope then
-        for scope in res.scope:gmatch("([^ ]+)") do
-          if scope == oidcConfig.scope then
-            validScope = true
-            break
-          end
-        end
+        validScope = utils.table_contains(res.scope, scopes_required)
       end
       if not validScope then
-        kong.log.err("Scope validation failed")
+        kong.log.err("Scope validation failed, missing required scopes: " .. scopes_required)
         return kong.response.error(ngx.HTTP_FORBIDDEN)
       end
     end
