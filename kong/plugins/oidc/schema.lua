@@ -18,13 +18,13 @@ return {
           {
             client_id = {
               type = "string",
-              required = true
+              required = false
             }
           },
           {
             client_secret = {
               type = "string",
-              required = true
+              required = false
             }
           },
           {
