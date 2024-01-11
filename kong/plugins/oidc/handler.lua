@@ -31,6 +31,7 @@ end
 function handle(oidcConfig)
   local response
 
+  --- bearer token first
   if oidcConfig.bearer_jwt_auth_enable then
     response = verify_bearer_jwt(oidcConfig)
     if response then
@@ -40,11 +41,11 @@ function handle(oidcConfig)
       if not oidcConfig.disable_userinfo_header then
         utils.injectUser(response, oidcConfig.userinfo_header_name)
       end
-      return
     end
   end
 
-  if oidcConfig.introspection_endpoint then
+  -- introspection second
+  if response == nil and oidcConfig.introspection_endpoint then
     response = introspect(oidcConfig)
     if response then
       utils.setCredentials(response)
@@ -56,10 +57,11 @@ function handle(oidcConfig)
     end
   end
 
+  -- finally authenticate if necessary and bearer_only is enabled
   -- if bearer mode only we don't need to authenticate.
   -- this also allows client_id and client_secret to be optional as
   -- these are not required for a bearer only flow with jwks
-  if response == nil and oidcConfig.bearer_only == "no" then
+  if response == nil and not oidcConfig.bearer_only then
     response = make_oidc(oidcConfig)
     if response then
       if response.user or response.id_token then
@@ -85,6 +87,22 @@ function handle(oidcConfig)
             and response.id_token) then
         utils.injectIDToken(response.id_token, oidcConfig.id_token_header_name)
       end
+    end
+  end
+
+  -- finally authorize scopes (add other validation if needed)
+  if response then
+    -- if response comes from authenticate, we need to decode the access token to verify the scopes for authorization
+    if (response.access_token) then
+      local res, err = require("resty.openidc").bearer_jwt_verify(oidcConfig)
+      -- something went very wrong with the token
+      if err then
+        return kong.response.error(ngx.HTTP_UNAUTHORIZED)
+      end
+      response = res
+    end
+    if not authorize_scopes(oidcConfig, response) then
+      return kong.response.error(ngx.HTTP_FORBIDDEN)
     end
   end
 end
@@ -113,7 +131,7 @@ function make_oidc(oidcConfig)
 end
 
 function introspect(oidcConfig)
-  if utils.has_bearer_access_token() or oidcConfig.bearer_only == "yes" then
+  if utils.has_bearer_access_token() or oidcConfig.bearer_only then
     local res, err
     if oidcConfig.use_jwks == "yes" then
       res, err = require("resty.openidc").bearer_jwt_verify(oidcConfig)
@@ -121,7 +139,7 @@ function introspect(oidcConfig)
       res, err = require("resty.openidc").introspect(oidcConfig)
     end
     if err then
-      if oidcConfig.bearer_only == "yes" then
+      if oidcConfig.bearer_only then
         ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. err .. '"'
         return kong.response.error(ngx.HTTP_UNAUTHORIZED)
       end
@@ -129,12 +147,16 @@ function introspect(oidcConfig)
     end
     if oidcConfig.validate_scope == "yes" then
       local validScope = false
-      local scopes_required = { table.unpack(oidcConfig.authorization_scopes_required), oidcConfig.scope }
       if res.scope then
-        validScope = utils.table_contains(res.scope, scopes_required)
+        for scope in res.scope:gmatch("([^ ]+)") do
+          if scope == oidcConfig.scope then
+            validScope = true
+            break
+          end
+        end
       end
       if not validScope then
-        kong.log.err("Scope validation failed, missing required scopes: " .. scopes_required)
+        kong.log.err("Scope validation failed")
         return kong.response.error(ngx.HTTP_FORBIDDEN)
       end
     end
@@ -184,8 +206,25 @@ function verify_bearer_jwt(oidcConfig)
     kong.log.err('Bearer JWT verify failed: ' .. err)
     return nil
   end
-
   return json
+end
+
+function authorize_scopes(oidcConfig, res)
+  if not oidcConfig.authorization_scopes_required then
+    return true
+  end
+  local validScope = false
+  local scopes_required = oidcConfig.authorization_scopes_required
+  ngx.log(ngx.DEBUG, "Validating scopes: [" .. table.concat(scopes_required, " ") .. "] against [" .. res.scope .. "]")
+  if res.scope then
+    local res_scope = {}
+    for scope in res.scope:gmatch("([^ ]+)") do table.insert(res_scope, scope) end
+    validScope = utils.containsAll(res_scope, scopes_required)
+  end
+  if not validScope then
+    kong.log.err("Scope validation failed, missing required scopes: " .. table.concat(scopes_required, " "))
+  end
+  return validScope
 end
 
 return OidcHandler

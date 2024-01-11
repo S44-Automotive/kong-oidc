@@ -53,11 +53,11 @@ function M.get_options(config, ngx)
     introspection_endpoint_auth_method = config.introspection_endpoint_auth_method,
     introspection_cache_ignore = config.introspection_cache_ignore,
     timeout = config.timeout,
-    bearer_only = config.bearer_only,
+    bearer_only = config.bearer_only == "yes",
     realm = config.realm,
     redirect_uri = config.redirect_uri or M.get_redirect_uri(ngx),
     scope = config.scope,
-    validate_scope = config.validate_scope,
+    validate_scope = config.validate_scope == "yes",
     response_type = config.response_type,
     ssl_verify = config.ssl_verify,
     use_jwks = config.use_jwks,
@@ -229,7 +229,7 @@ function M.has_common_item(t1, t2)
 end
 
 -- verify if t1 has all the items for t2
-function containsAll(t1, t2)
+function M.containsAll(t1, t2)
   for _, item2 in ipairs(t2) do
     local found = false
     for _, item1 in ipairs(t1) do
