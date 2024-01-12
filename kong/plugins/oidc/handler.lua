@@ -5,7 +5,11 @@ local OidcHandler = {
 local utils = require("kong.plugins.oidc.utils")
 local filter = require("kong.plugins.oidc.filter")
 local session = require("kong.plugins.oidc.session")
+local consumers = require("kong.plugins.oidc.consumers")
 
+function OidcHandler:init_worker()
+  consumers.register_events()
+end
 
 function OidcHandler:access(config)
   local oidcConfig = utils.get_options(config, ngx)

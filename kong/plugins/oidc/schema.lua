@@ -329,14 +329,12 @@ return {
               required = false,
               type = "array",
               default = {
-                "username",
                 "custom_id"
               },
               elements = {
                 type = "string",
                 one_of = {
-                  "id",
-                  "username",
+                  "id_or_username",
                   "custom_id"
                 }
               }
