@@ -314,6 +314,40 @@ return {
                 type = "string"
               }
             }
+          },
+          {
+            consumer_claim = {
+              required = false,
+              type = "array",
+              elements = {
+                type = "string"
+              }
+            }
+          },
+          {
+            consumer_by = {
+              required = false,
+              type = "array",
+              default = {
+                "username",
+                "custom_id"
+              },
+              elements = {
+                type = "string",
+                one_of = {
+                  "id",
+                  "username",
+                  "custom_id"
+                }
+              }
+            }
+          },
+          {
+            consumer_optional = {
+              required = false,
+              type = "boolean",
+              default = false
+            }
           }
         }
       }

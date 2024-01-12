@@ -88,7 +88,10 @@ function M.get_options(config, ngx)
       http_proxy  = config.http_proxy,
       https_proxy = config.https_proxy
     },
-    authorization_scopes_required = config.authorization_scopes_required
+    authorization_scopes_required = config.authorization_scopes_required,
+    consumer_claim = config.consumer_claim,
+    consumer_by = config.consumer_by,
+    consumer_optional = config.consumer_optional
   }
 end
 
