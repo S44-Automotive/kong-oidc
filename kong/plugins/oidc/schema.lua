@@ -318,25 +318,17 @@ return {
           {
             consumer_claim = {
               required = false,
-              type = "array",
-              elements = {
-                type = "string"
-              }
+              type = "string"
             }
           },
           {
             consumer_by = {
               required = false,
-              type = "array",
-              default = {
+              type = "string",
+              default = "id_or_username",
+              one_of = {
+                "id_or_username",
                 "custom_id"
-              },
-              elements = {
-                type = "string",
-                one_of = {
-                  "id_or_username",
-                  "custom_id"
-                }
               }
             }
           },

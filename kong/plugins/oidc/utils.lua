@@ -100,7 +100,7 @@ end
 -- https://github.com/Kong/kong/blob/3.0.0/kong/plugins/oauth2/access.lua
 -- Copyright 2016-2022 Kong Inc. Licensed under the Apache License, Version 2.0
 -- https://github.com/Kong/kong/blob/3.0.0/LICENSE
-local function set_consumer(consumer, credential)
+function M.set_consumer(consumer, credential)
   kong.client.authenticate(consumer, credential)
 
   local set_header = kong.service.request.set_header
@@ -152,11 +152,11 @@ function M.injectIDToken(idToken, headerName)
   kong.service.request.set_header(headerName, ngx.encode_base64(tokenStr))
 end
 
-function M.setCredentials(user)
+function M.setCredentials(user, consumer)
   local tmp_user = user
   tmp_user.id = user.sub
   tmp_user.username = user.preferred_username
-  set_consumer(nil, tmp_user)
+  M.set_consumer(consumer, tmp_user)
 end
 
 function M.injectUser(user, headerName)
@@ -246,6 +246,19 @@ function M.containsAll(t1, t2)
     end
   end
   return true
+end
+
+function M.dump(o)
+  if type(o) == 'table' then
+    local s = '{ '
+    for k, v in pairs(o) do
+      if type(k) ~= 'number' then k = '"' .. k .. '"' end
+      s = s .. '[' .. k .. '] = ' .. M.dump(v) .. ','
+    end
+    return s .. '} '
+  else
+    return tostring(o)
+  end
 end
 
 return M

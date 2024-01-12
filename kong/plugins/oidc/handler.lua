@@ -39,6 +39,7 @@ function handle(oidcConfig)
   if oidcConfig.bearer_jwt_auth_enable then
     response = verify_bearer_jwt(oidcConfig)
     if response then
+      ngx.log(ngx.DEBUG, "Verified bearer token: " .. utils.dump(response))
       utils.setCredentials(response)
       utils.injectGroups(response, oidcConfig.groups_claim)
       utils.injectHeaders(oidcConfig.header_names, oidcConfig.header_claims, { response })
@@ -94,9 +95,13 @@ function handle(oidcConfig)
     end
   end
 
-  -- finally authorize scopes (add other validation if needed)
-  if response then
-    -- if response comes from authenticate, we need to decode the access token to verify the scopes for authorization
+  if not response then
+    return kong.response.error(ngx.HTTP_UNAUTHORIZED)
+  end
+
+  -- authorize scopes(add other validation if needed)
+  -- if response comes from authenticate, we need to decode the access token to verify the scopes for authorization
+  if oidcConfig.authorization_scopes_required then
     if (response.access_token) then
       local res, err = require("resty.openidc").bearer_jwt_verify(oidcConfig)
       -- something went very wrong with the token
@@ -108,6 +113,16 @@ function handle(oidcConfig)
     if not authorize_scopes(oidcConfig, response) then
       return kong.response.error(ngx.HTTP_FORBIDDEN)
     end
+  end
+
+  -- set credentials and consumer if consumer_claim is set
+  if oidcConfig.consumer_claim then
+    local consumer = get_consumer(oidcConfig, response)
+    if not consumer and not oidcConfig.consumer_optional then
+      kong.log.err("Consumer not found and consumer_optional is false, returning 403 forbidden")
+      return kong.response.error(ngx.HTTP_FORBIDDEN)
+    end
+    utils.set_consumer(consumer)
   end
 end
 
@@ -229,6 +244,15 @@ function authorize_scopes(oidcConfig, res)
     kong.log.err("Scope validation failed, missing required scopes: " .. table.concat(scopes_required, " "))
   end
   return validScope
+end
+
+function get_consumer(oidcConfig, res)
+  ngx.log(ngx.DEBUG, "Looking up consumer by claim: " .. oidcConfig.consumer_claim)
+  local claim = res[oidcConfig.consumer_claim]
+  if not claim then
+    return nil
+  end
+  return consumers.get_consumer_by(claim, oidcConfig.consumer_by)
 end
 
 return OidcHandler
